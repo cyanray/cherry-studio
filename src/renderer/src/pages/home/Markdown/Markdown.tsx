@@ -13,6 +13,7 @@ import rehypeMathjax from 'rehype-mathjax'
 import rehypeRaw from 'rehype-raw'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
+import type { Pluggable, Plugin } from 'unified'
 
 import CodeBlock from './CodeBlock'
 import ImagePreview from './ImagePreview'
@@ -29,7 +30,20 @@ const Markdown: FC<Props> = ({ message }) => {
   const { t } = useTranslation()
   const { renderInputMessageAsMarkdown, mathEngine } = useSettings()
 
-  const rehypeMath = mathEngine === 'KaTeX' ? rehypeKatex : rehypeMathjax
+  const mathjaxOptions = useMemo(
+    () => ({
+      tex: {
+        packages: ['base', 'ams', 'amssymb', 'boldsymbol', 'cases', 'physics']
+      }
+    }),
+    []
+  )
+
+  const rehypeMath: (Pluggable | [Plugin, ...unknown[]])[] = useMemo(
+    () =>
+      mathEngine === 'KaTeX' ? [rehypeKatex] : [[rehypeMathjax, mathjaxOptions] as [Plugin, typeof mathjaxOptions]],
+    [mathEngine, mathjaxOptions]
+  )
 
   const messageContent = useMemo(() => {
     const empty = isEmpty(message.content)
@@ -40,7 +54,7 @@ const Markdown: FC<Props> = ({ message }) => {
 
   const rehypePlugins = useMemo(() => {
     const hasElements = ALLOWED_ELEMENTS.test(messageContent)
-    return hasElements ? [rehypeRaw, rehypeMath] : [rehypeMath]
+    return hasElements ? [rehypeRaw, ...rehypeMath] : rehypeMath
   }, [messageContent, rehypeMath])
 
   if (message.role === 'user' && !renderInputMessageAsMarkdown) {
